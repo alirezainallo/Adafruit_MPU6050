@@ -252,6 +252,23 @@ void Adafruit_MPU6050::setGyroRange(mpu6050_gyro_range_t new_range) {
       Adafruit_BusIO_RegisterBits(&gyro_config, 2, 3);
 
   gyro_range.write(new_range);
+
+  switch (new_range) {
+    case MPU6050_RANGE_250_DEG:
+        dpsPerDigit = .007633f;
+        break;
+    case MPU6050_RANGE_500_DEG:
+        dpsPerDigit = .015267f;
+        break;
+    case MPU6050_RANGE_1000_DEG:
+        dpsPerDigit = .030487f;
+        break;
+    case MPU6050_RANGE_2000_DEG:
+        dpsPerDigit = .060975f;
+        break;
+    default:
+        break;
+  }
 }
 
 /**************************************************************************/
@@ -718,6 +735,17 @@ bool Adafruit_MPU6050::getEvent(sensors_event_t *accel, sensors_event_t *gyro,
   return true;
 }
 
+mpu6050_vector_t Adafruit_MPU6050::readNormalizeGyro(void) {
+    sensors_event_t a,g,t;
+    getEvent(&a, &g, &t);
+
+    normalizedGyro.XAxis = (g.gyro.x - deltaGyro.XAxis);
+    normalizedGyro.YAxis = (g.gyro.y - deltaGyro.YAxis);
+    normalizedGyro.ZAxis = (g.gyro.z - deltaGyro.ZAxis);
+
+    return normalizedGyro;
+}
+
 void Adafruit_MPU6050::fillTempEvent(sensors_event_t *temp,
                                      uint32_t timestamp) {
 
@@ -748,9 +776,10 @@ void Adafruit_MPU6050::fillGyroEvent(sensors_event_t *gyro,
   gyro->sensor_id = _sensorid_gyro;
   gyro->type = SENSOR_TYPE_GYROSCOPE;
   gyro->timestamp = timestamp;
-  gyro->gyro.x = gyroX * SENSORS_DPS_TO_RADS;
-  gyro->gyro.y = gyroY * SENSORS_DPS_TO_RADS;
-  gyro->gyro.z = gyroZ * SENSORS_DPS_TO_RADS;
+  float digit2rad = dpsPerDigit * SENSORS_DPS_TO_RADS;
+  gyro->gyro.x = gyroX * digit2rad;
+  gyro->gyro.y = gyroY * digit2rad;
+  gyro->gyro.z = gyroZ * digit2rad;
 }
 
 /*!
@@ -955,4 +984,40 @@ void Adafruit_MPU6050::setAccelerometerOffsets(mpu6050_offset_t offset)
     buffer[5] = ((uint8_t*)&offset.z)[0];
     
     OffSetReg.write(buffer, sizeof(mpu6050_offset_t));
+}
+
+void Adafruit_MPU6050::calibrateGyro(uint32_t Samples){
+    // Reset values
+    float sumX = 0;
+    float sumY = 0;
+    float sumZ = 0;
+    float sigmaX = 0;
+    float sigmaY = 0;
+    float sigmaZ = 0;
+
+    // Read n-samples
+    for (uint8_t i = 0; i < Samples; ++i)
+    {
+      sensors_event_t a,g,t;
+      getEvent(&a, &g, &t);
+      sumX += g.gyro.x;
+      sumY += g.gyro.y;
+      sumZ += g.gyro.z;
+
+      sigmaX += g.gyro.x * g.gyro.x;
+      sigmaY += g.gyro.y * g.gyro.y;
+      sigmaZ += g.gyro.z * g.gyro.z;
+
+      delay(5);
+    }
+
+    // Calculate delta vectors
+    deltaGyro.XAxis = sumX / Samples;
+    deltaGyro.YAxis = sumY / Samples;
+    deltaGyro.ZAxis = sumZ / Samples;
+
+    // Calculate threshold vectors
+    thresholdGyro.XAxis = sqrt((sigmaX / Samples) - (deltaGyro.XAxis * deltaGyro.XAxis));
+    thresholdGyro.YAxis = sqrt((sigmaY / Samples) - (deltaGyro.YAxis * deltaGyro.YAxis));
+    thresholdGyro.ZAxis = sqrt((sigmaZ / Samples) - (deltaGyro.ZAxis * deltaGyro.ZAxis));
 }

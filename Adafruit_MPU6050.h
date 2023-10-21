@@ -178,6 +178,13 @@ typedef struct {
   int16_t z;
 } mpu6050_offset_t;
 
+
+typedef struct mpu6050_vector_t {
+  float XAxis;
+  float YAxis;
+  float ZAxis;
+}mpu6050_vector_t;
+
 class Adafruit_MPU6050;
 
 /** Adafruit Unified Sensor interface for temperature component of MPU6050 */
@@ -241,6 +248,8 @@ public:
   bool getEvent(sensors_event_t *accel, sensors_event_t *gyro,
                 sensors_event_t *temp);
 
+  mpu6050_vector_t readNormalizeGyro(void);
+
   mpu6050_accel_range_t getAccelerometerRange(void);
   void setAccelerometerRange(mpu6050_accel_range_t);
 
@@ -290,6 +299,9 @@ public:
   mpu6050_offset_t getAccelerometerOffsets(void);
   void setAccelerometerOffsets(mpu6050_offset_t offset);
 
+  // Gyro Calibration
+  void calibrateGyro(uint32_t Samples = 50);
+
   Adafruit_Sensor *getTemperatureSensor(void);
   Adafruit_Sensor *getAccelerometerSensor(void);
   Adafruit_Sensor *getGyroSensor(void);
@@ -301,6 +313,8 @@ private:
   void _scaleSensorData(void);
 
 protected:
+  mpu6050_vector_t normalizedGyro, deltaGyro, thresholdGyro;
+  float dpsPerDigit;
   float temperature, ///< Last reading's temperature (C)
       accX,          ///< Last reading's accelerometer X axis m/s^2
       accY,          ///< Last reading's accelerometer Y axis m/s^2
