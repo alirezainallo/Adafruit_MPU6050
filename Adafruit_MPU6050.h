@@ -248,7 +248,7 @@ public:
   bool getEvent(sensors_event_t *accel, sensors_event_t *gyro,
                 sensors_event_t *temp);
 
-  mpu6050_vector_t readNormalizeGyro(void);
+  mpu6050_vector_t readNormalizeGyro(sensors_vec_t *gyro);
 
   mpu6050_accel_range_t getAccelerometerRange(void);
   void setAccelerometerRange(mpu6050_accel_range_t);
@@ -314,7 +314,8 @@ private:
 
 protected:
   mpu6050_vector_t normalizedGyro, deltaGyro, thresholdGyro;
-  float dpsPerDigit;
+  mpu6050_vector_t normalizedAccel;
+  float dpsPerDigit, rangePerDigit;
   float temperature, ///< Last reading's temperature (C)
       accX,          ///< Last reading's accelerometer X axis m/s^2
       accY,          ///< Last reading's accelerometer Y axis m/s^2
